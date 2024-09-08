@@ -212,3 +212,136 @@ function uiElementInSight(el) {
 
     return isOnScreen;
 }
+
+
+function onGenerateButtonClick() {
+    console.log("生成按钮被点击。开始执行登录和生成流程...");
+
+    // 第一步：先进行登录，获取 access_token
+    const loginData = {
+        grant_type: "password",
+        phone_number: "13999999999",
+        password: "123456"
+    };
+
+    console.log("开始登录，登录请求体:", loginData);
+
+    fetch('http://127.0.0.1:6868/api/tokens', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginData),
+    })
+    .then(response => {
+        console.log("登录请求已发送，等待响应...");
+        if (!response.ok) {
+            console.error("登录失败，状态码:", response.status);
+            throw new Error('登录失败');
+        }
+        return response.json();
+    })
+    .then(loginResponseData => {
+        // 登录成功，获取 access_token
+        const accessToken = loginResponseData.data.access_token;  // 从 data 中获取 access_token
+        console.log("登录成功，获取到的 access_token:", accessToken);
+
+        // 第二步：获取用户输入的生图信息
+        const promptElement = document.getElementsById('prompt');
+        console.log("!!!!", promptElement);
+        const negativePromptElement = document.getElementById('txt2img_neg_prompt');
+        const widthElement = document.getElementById('img2img_width');
+        const heightElement = document.getElementById('img2img_height');
+        const stepsElement = document.getElementById('txt2img_hires_steps');
+        const samplerElement = document.getElementById('hr_sampler');
+        const cfgScaleElement = document.getElementById('txt2img_cfg_scale');
+        const seedElement = document.getElementById('img2img_seed');
+
+        // 检查所有元素是否存在
+        if (promptElement && negativePromptElement && widthElement && heightElement && stepsElement && samplerElement && cfgScaleElement && seedElement) {
+            const prompt = promptElement.value;  // 获取提示信息
+            console.log("!!!!", prompt);
+            const negativePrompt = negativePromptElement.value;  // 获取负面提示信息
+            const width = widthElement.value;    // 获取宽度
+            const height = heightElement.value;  // 获取高度
+            const steps = stepsElement.value;    // 获取步数
+            const samplerName = samplerElement.value;  // 获取采样器
+            const cfgScale = cfgScaleElement.value;  // 获取CFG scale
+            const seed = seedElement.value;     // 获取种子
+
+            // 构造请求体数据
+            const userData = {
+                prompt: prompt || "默认提示",
+                negative_prompt: negativePrompt || "low quality, bad anatomy",
+                steps: parseInt(steps, 10) || 30,
+                sampler_name: samplerName || "Euler a",
+                cfg_scale: parseFloat(cfgScale) || 7.0,
+                width: parseInt(width, 10) || 256,
+                height: parseInt(height, 10) || 256,
+                seed: parseInt(seed, 10) || 12345
+            };
+
+            console.log("构造的生图请求体:", userData);
+
+            // 发送请求的代码在这里
+            fetch('http://localhost:6868/api/generate/image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`,  // 使用登录获取的 access_token
+                },
+                body: JSON.stringify(userData),  // 发送 userData
+            })
+            .then(response => {
+                console.log("图像生成请求已发送，等待响应...");
+                if (!response.ok) {
+                    console.error("图像生成请求失败，状态码:", response.status);
+                    throw new Error('图像生成请求失败');
+                }
+                return response.json();
+            })
+            .then(imageResponseData => {
+                console.log('图像生成成功:', imageResponseData);
+            })
+            .catch(error => {
+                console.error('生成图像时发生错误:', error);
+            });
+        } else {
+            console.error("某些输入元素未找到，请检查 DOM 元素是否正确存在。");
+        }
+        })
+        .catch(error => {
+            console.error('登录时发生错误:', error);
+        });
+
+    // 模拟一个带有超时的异步操作，改变按钮文本
+    setTimeout(() => {
+        console.log("完成执行自定义前端逻辑。");
+
+        // 将按钮文本更改为"新生成"
+        const generateButton = get_uiCurrentTabContent().querySelector('button[id$=_generate]');
+        if (generateButton) {
+            generateButton.textContent = "开始生图 ⚡ 19";
+        }
+    }, 1000); // 模拟一个在1秒后完成的异步操作
+}
+
+// 等待DOM内容完全加载
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(() => {
+        const currentTabContent = get_uiCurrentTabContent();
+        if (currentTabContent) {
+            const generateButton = currentTabContent.querySelector('button[id$=_generate]');
+            if (generateButton) {
+                console.log("找到生成按钮，添加点击事件监听器。");
+                generateButton.addEventListener('click', onGenerateButtonClick);
+            } else {
+                console.log("未找到生成按钮。");
+            }
+        } else {
+            console.log("未找到当前选项卡内容。");
+        }
+    }, 2000); // 延迟2秒检查
+});
+
+
